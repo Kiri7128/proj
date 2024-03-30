@@ -30,71 +30,87 @@ public:
     void AddNewTask(const string& person)
     {
         Persons[person][TaskStatus::NEW]++;
-
     }
 
-    // Обновить статусы по данному количеству задач конкретного разработчика,
-    // подробности см. ниже
+    
     tuple<TasksInfo, TasksInfo> PerformPersonTasks(const string& person, int task_count)
     {
-        TasksInfo CurrentTask = GetPersonTasksInfo(person);
-        TasksInfo oldTask = GetPersonTasksInfo(person);
-        TasksInfo UntouchedTask;
-        TasksInfo UpdatedTask;
-        if (Persons.count(person) == 0)
-        {
-            return tie(UpdatedTask, UntouchedTask);
-        }
-        while (task_count > 0)
-        {
-            if (CurrentTask[TaskStatus::NEW] > 0)
-            {
-                CurrentTask[TaskStatus::NEW]--;
-                CurrentTask[TaskStatus::IN_PROGRESS]++;
-                UpdatedTask[TaskStatus::IN_PROGRESS]++;
-                task_count--;
-            }
-            else if (CurrentTask[TaskStatus::IN_PROGRESS] > 0)
-            {
-                CurrentTask[TaskStatus::IN_PROGRESS]--;
-                CurrentTask[TaskStatus::TESTING]++;
-                UpdatedTask[TaskStatus::TESTING]++;
-                task_count--;
-            }
-            else if (CurrentTask[TaskStatus::TESTING] > 0)
-            {
-                CurrentTask[TaskStatus::TESTING]--;
-                CurrentTask[TaskStatus::DONE]++;
-                UpdatedTask[TaskStatus::DONE]++;
-                task_count--;
-            }
-            else {
-                for (int i = static_cast<int>(TaskStatus::NEW); i < static_cast<int>(TaskStatus::DONE); i++)
-                {
-                    TaskStatus t = static_cast<TaskStatus>(i);
-                    UntouchedTask[t] = oldTask[t] - CurrentTask[t];
-                }
-                Persons[person] = CurrentTask;
-                return tie(UpdatedTask, UntouchedTask);
-            }
-        }
-        for (int i = static_cast<int>(TaskStatus::NEW); i != static_cast<int>(TaskStatus::DONE); i++)
-        {
-            TaskStatus t = static_cast<TaskStatus>(i);
-            UntouchedTask[t] = (oldTask[t] - (oldTask[t] - CurrentTask[t])) - UpdatedTask[t];
-        }
-        Persons[person] = CurrentTask;
-        return tie(UpdatedTask, UntouchedTask);
-
+    TasksInfo updated_tasks, untouched_tasks;
+    
+    if (Persons.count(person) == 0){return tie(updated_tasks,untouched_tasks);}
+    
+    TasksInfo current_tasks = GetPersonTasksInfo(person);
+    TasksInfo Odlcurrent_tasks = current_tasks;
+    int count = current_tasks[TaskStatus::NEW] + current_tasks[TaskStatus::IN_PROGRESS] + current_tasks[TaskStatus::TESTING] + current_tasks[TaskStatus::DONE];
+    if (task_count == 0){
+        current_tasks[TaskStatus::DONE] = 0;
+        return tie(updated_tasks,current_tasks);}
+    if (task_count > count)
+    {
+        
+        updated_tasks[TaskStatus::IN_PROGRESS] = current_tasks[TaskStatus::NEW];
+        updated_tasks[TaskStatus::TESTING] = current_tasks[TaskStatus::IN_PROGRESS];
+        updated_tasks[TaskStatus::DONE] = current_tasks[TaskStatus::TESTING];
+        current_tasks[TaskStatus::NEW] = 0;
+        current_tasks[TaskStatus::IN_PROGRESS] = updated_tasks[TaskStatus::IN_PROGRESS];
+        current_tasks[TaskStatus::TESTING]=updated_tasks[TaskStatus::TESTING];
+        current_tasks[TaskStatus::DONE]+=updated_tasks[TaskStatus::DONE];
+        
     }
+    
+    else if (task_count < count)
+    {
+        for (int i = 0;i < task_count;i++)
+        {
+            if (current_tasks[TaskStatus::NEW] > 0)
+            {  
+                current_tasks[TaskStatus::NEW]--;
+                updated_tasks[TaskStatus::IN_PROGRESS]++;
+                current_tasks[TaskStatus::IN_PROGRESS]++;
+                count++;
+            }
+            else if (current_tasks[TaskStatus::IN_PROGRESS] > 0)
+            {
+                current_tasks[TaskStatus::IN_PROGRESS]--;
+                updated_tasks[TaskStatus::TESTING]++;
+                current_tasks[TaskStatus::TESTING]++;
+                count++;
+            }
+            else if (current_tasks[TaskStatus::TESTING] > 0)
+            {
+                current_tasks[TaskStatus::TESTING]--;
+                current_tasks[TaskStatus::DONE]++;
+                updated_tasks[TaskStatus::TESTING]++;
+                count++;
+            }
+        else{break;}
+        untouched_tasks[TaskStatus::NEW] = Odlcurrent_tasks[TaskStatus::NEW] - updated_tasks[TaskStatus::IN_PROGRESS];
+        untouched_tasks[TaskStatus::IN_PROGRESS] = current_tasks[TaskStatus::IN_PROGRESS] - updated_tasks[TaskStatus::IN_PROGRESS];
+        untouched_tasks[TaskStatus::TESTING] = current_tasks[TaskStatus::TESTING] - updated_tasks[TaskStatus::TESTING];
+    }
+Persons[person] = current_tasks;
+untouched_tasks[TaskStatus::DONE] = 0;
+ }
+        
+   
+    
+   
+    
+  
+      Persons[person] = current_tasks;  
+
+    return tie(updated_tasks, untouched_tasks);
+}
+
+ 
 
 private:
     map<string, TasksInfo> Persons;
+
 };
 
-// Принимаем словарь по значению, чтобы иметь возможность
-// обращаться к отсутствующим ключам с помощью [] и получать 0,
-// не меняя при этом исходный словарь.
+
+
 // Принимаем словарь по значению, чтобы иметь возможность
 // обращаться к отсутствующим ключам с помощью [] и получать 0,
 // не меняя при этом исходный словарь
